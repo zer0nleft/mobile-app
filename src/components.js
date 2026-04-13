@@ -58,6 +58,35 @@ export const ActivityItem = ({ initials, name, timeAction, isUnlocked }) => {
   );
 };
 
+export const LogItem = ({ id, initials, name, timeAction, isUnlocked, onDelete }) => {
+  return (
+    <View style={styles.containerCards}>
+      <View style={styles.avatarContainer}>
+        <Text style={styles.avatarText}>{initials}</Text>
+      </View>
+
+      <View style={styles.detailsContainer}>
+        <Text style={styles.nameText}>{name}</Text>
+        <Text style={styles.timeActionText}>{timeAction}</Text>
+      </View>
+
+      {/* Sección de Iconos: Candado y el nuevo botón de Borrar */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+        <MaterialCommunityIcons 
+          name={isUnlocked ? "lock-open-outline" : "lock-outline"} 
+          size={22} 
+          color={isUnlocked ? "#4CAF50" : "#F44336"} 
+        />
+        
+        {/* Botón de eliminar */}
+        <Pressable onPress={() => onDelete(id)}>
+          <MaterialCommunityIcons name="close-circle" size={26} color="#ccc" />
+        </Pressable>
+      </View>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   lockButton: {
     backgroundColor:COLORS.primary,

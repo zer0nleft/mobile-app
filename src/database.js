@@ -27,3 +27,8 @@ export const insertLog = (name, action, isUnlocked) => {
 export const getAllLogs = () => {
   return db.getAllSync('SELECT * FROM logs ORDER BY id DESC');
 };
+
+export const deleteLog = (id) => {
+  db.runSync('DELETE FROM logs WHERE id = ?', [id]);
+  console.log(`Log con ID ${id} eliminado`);
+};

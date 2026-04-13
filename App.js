@@ -52,11 +52,9 @@ export default function App() {
               iconName = focused ? 'clipboard-text' : 'clipboard-text-outline';
             } else if (route.name === 'Usuarios') {
               iconName = focused ? 'account' : 'account-outline';
-            } else if (route.name === 'Settings') {
+            } else if (route.name === 'Ajustes') {
               iconName = focused ? 'cog' : 'cog-outline';
-            } else if (route.name === 'Settings') {
-              iconName = focused ? 'cog' : 'cog-outline';
-            }
+            } 
 
             return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
           },
@@ -70,7 +68,7 @@ export default function App() {
         <Tab.Screen name="Control" component={HomeScreen} />
         <Tab.Screen name="Logs" component={LogsScreen} />
         <Tab.Screen name="Usuarios" component={UsersScreen} />
-        <Tab.Screen name="Settings" component={SettingsScreen} />
+        <Tab.Screen name="Ajustes" component={SettingsScreen} />
       </Tab.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

@@ -11,13 +11,23 @@ import { Omega } from 'lucide-react-native';
 
 //Empiezo a imnportar mis propios componentes:
 import { LockButton, ActivityItem } from '../components';
-import { insertLog } from '../database'; 
-
+import { insertLog, getAllLogs } from '../database'; 
+import { useIsFocused } from '@react-navigation/native';
 
 
 
 export default function HomeScreen() {
   const [isLocked, setIsLocked] = useState(true); 
+
+  const [recentLogs, setRecentLogs] = useState([]);
+  const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused) {
+      const data = getAllLogs();
+      setRecentLogs(data.slice(0, 6)); // Tomamos solo los 4 más recientes
+    }
+  }, [isFocused]);
 
   const registrarAcceso = (nuevoEstado) => {
     try {
@@ -49,10 +59,10 @@ export default function HomeScreen() {
     <View style={styles.lockContainer}>
         <MaterialCommunityIcons 
           // Cambiamos el icono según isUnlocked
-          name={isLocked ? "lock-open-outline" : "lock-outline"} 
+          name={isLocked ?  "lock-outline":"lock-open-outline"} 
           size={200} 
           // Cambiamos el color según isUnlocked (verde para abierto, rojo para cerrado)
-          color={isLocked ? "#4CAF50" : "#F44336"} 
+          color={isLocked ?  "#F44336":"#4CAF50"} 
         />
         
     <LockButton
@@ -74,47 +84,15 @@ export default function HomeScreen() {
         <View>
             {/* Renderizado de las tarjetas reutilizables */}
         
-        {/* Tarjeta 1 */}
-        <ActivityItem 
-            initials="JD"
-            name="John Doe"
-            timeAction="08:31 AM - Unlocked"
-            isUnlocked={true} // Mostrará candado abierto/verde
-        />
-
-        {/* Tarjeta 2 */}
-        <ActivityItem 
-            initials="JD"
-            name="Access Card #14 (Sarah L.)"
-            timeAction="08:15 AM - Unlocked"
-            isUnlocked={true} // Mostrará candado abierto/verde
-        />
-
-        {/* Tarjeta 3 */}
-        <ActivityItem 
-            initials="JD"
-            name="John Doe"
-            timeAction="07:55 AM - Locked"
-            isUnlocked={false} // Mostrará candado cerrado/rojo
-        />
-        <ActivityItem 
-            initials="JD"
-            name="John Doe"
-            timeAction="07:55 AM - Locked"
-            isUnlocked={false} // Mostrará candado cerrado/rojo
-        />
-        <ActivityItem 
-            initials="JD"
-            name="John Doe"
-            timeAction="07:55 AM - Locked"
-            isUnlocked={false} // Mostrará candado cerrado/rojo
-        />
-        <ActivityItem 
-            initials="JD"
-            name="John Doe"
-            timeAction="07:55 AM - Locked"
-            isUnlocked={false} // Mostrará candado cerrado/rojo
-        />
+  {recentLogs.map((log) => (
+    <ActivityItem 
+      key={log.id}
+      initials="MT"
+      name={log.employee_name}
+      timeAction={log.created_at}
+      isUnlocked={log.is_unlocked === 1}
+    />
+  ))}
 
         {/* ... Sección inferior (Navegación)... */}
         </View>
