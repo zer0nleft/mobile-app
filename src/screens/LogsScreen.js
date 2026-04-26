@@ -1,55 +1,150 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { getAllLogs, deleteLog } from '../database';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+// 1. IMPORTAMOS TU NUEVA API
+import { getLogsPaginated } from '../api'; 
 import { LogItem } from '../components';
 import { styles } from '../constants';
 
 export default function LogsScreen() {
+  // Estados para la paginación y datos
   const [logs, setLogs] = useState([]);
-  const isFocused = useIsFocused(); // Detecta cuando entramos a la pestaña
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Función para cargar los datos
-  const cargarLogs = () => {
-    const data = getAllLogs();
-    setLogs(data);
+  // Estados para la Fecha
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const isFocused = useIsFocused();
+
+  // Función principal de carga
+  const cargarLogs = async (fecha, pagina) => {
+    setIsLoading(true);
+    // Formateamos la fecha a YYYY-MM-DD para PostgreSQL
+    const dateStr = fecha.toISOString().split('T')[0]; 
+    
+    const respuesta = await getLogsPaginated(dateStr, pagina, 10);
+    
+    if (respuesta && respuesta.data) {
+      setLogs(respuesta.data);
+      setCurrentPage(respuesta.currentPage);
+      setTotalPages(respuesta.totalPages);
+    }
+    setIsLoading(false);
   };
 
+  // Se ejecuta al entrar a la pantalla o al cambiar la fecha/página
   useEffect(() => {
     if (isFocused) {
-      cargarLogs(); // Recarga la lista cada vez que la pantalla se ve
+      cargarLogs(selectedDate, currentPage); 
     }
-  }, [isFocused]);
+  }, [isFocused, selectedDate, currentPage]);
 
-  const manejarBorrado = (id) => {
-    Alert.alert("Eliminar", "¿Estás seguro de borrar este registro?", [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Borrar", style: "destructive", onPress: () => {
-          deleteLog(id);
-          cargarLogs(); // Refrescar la lista tras borrar
-      }}
-    ]);
+  // Manejador del calendario
+  const onChangeDate = (event, newDate) => {
+    setShowDatePicker(false); // Ocultar modal
+    if (newDate) {
+      setSelectedDate(newDate);
+      setCurrentPage(1); // Si cambia de fecha, lo devolvemos a la página 1
+    }
   };
 
+  // Funciones de navegación de páginas
+  const irPaginaAnterior = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const irPaginaSiguiente = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  // Formateador de texto amigable: "Lunes, 26/04/2026"
+  const fechaAmigable = selectedDate.toLocaleDateString('es-ES', { 
+    weekday: 'long', 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric' 
+  });
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.titlesToLeft}>Historial de Accesos</Text>
-      
-      {logs.length === 0 ? (
-        <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No hay registros aún</Text>
-      ) : (
-        logs.map((log) => (
-          <LogItem 
-            key={log.id}
-            id={log.id}
-            initials="MT"
-            name={log.employee_name}
-            timeAction={log.created_at}
-            isUnlocked={log.is_unlocked === 1}
-            onDelete={manejarBorrado}
-          />
-        ))
+    <View style={styles.container}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+        <Text style={styles.titlesToLeft}>Historial de Accesos</Text>
+        
+        {/* BOTÓN SELECTOR DE FECHA */}
+        <TouchableOpacity 
+          onPress={() => setShowDatePicker(true)}
+          style={{ marginBottom: 15, paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee' }}
+        >
+          <Text style={{ fontSize: 16, color: '#2196F3', fontWeight: 'bold', textTransform: 'capitalize' }}>
+            Mostrando: {fechaAmigable}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* MODAL DEL CALENDARIO (Nativo de Android/iOS) */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display="default"
+          onChange={onChangeDate}
+          maximumDate={new Date()} // No dejar elegir fechas del futuro
+        />
       )}
-    </ScrollView>
+
+      {/* RENDERIZADO DE LA LISTA */}
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#2196F3" style={{ marginTop: 50 }} />
+      ) : logs.length === 0 ? (
+        <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No hay registros para este día</Text>
+      ) : (
+        <FlatList
+          data={logs}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.content}
+          renderItem={({ item }) => (
+            <LogItem 
+              id={item.id}
+              initials="MT"
+              name={`Candado #${item.lock_id} - Tarjeta #${item.nfc_card_id}`}
+              timeAction={new Date(item.created_at).toLocaleTimeString()} // Solo mostrar la hora, ya que el día está arriba
+              isUnlocked={item.is_unlocked} 
+            />
+          )}
+        />
+      )}
+
+      {/* CONTROLES DE PAGINACIÓN */}
+      {logs.length > 0 && (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#f9f9f9', borderTopWidth: 1, borderColor: '#eee' }}>
+          
+          <TouchableOpacity 
+            onPress={irPaginaAnterior} 
+            disabled={currentPage === 1}
+            style={{ padding: 10, opacity: currentPage === 1 ? 0.3 : 1 }}
+          >
+            <Text style={{ color: '#2196F3', fontWeight: 'bold' }}>{"< Anterior"}</Text>
+          </TouchableOpacity>
+
+          <Text style={{ color: '#666' }}>
+            Página {currentPage} de {totalPages}
+          </Text>
+
+          <TouchableOpacity 
+            onPress={irPaginaSiguiente} 
+            disabled={currentPage === totalPages}
+            style={{ padding: 10, opacity: currentPage === totalPages ? 0.3 : 1 }}
+          >
+            <Text style={{ color: '#2196F3', fontWeight: 'bold' }}>{"Siguiente >"}</Text>
+          </TouchableOpacity>
+
+        </View>
+      )}
+    </View>
   );
 }

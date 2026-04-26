@@ -78,10 +78,7 @@ export const LogItem = ({ id, initials, name, timeAction, isUnlocked, onDelete }
           color={isUnlocked ? "#4CAF50" : "#F44336"} 
         />
         
-        {/* Botón de eliminar */}
-        <Pressable onPress={() => onDelete(id)}>
-          <MaterialCommunityIcons name="close-circle" size={26} color="#ccc" />
-        </Pressable>
+        
       </View>
     </View>
   );

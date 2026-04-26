@@ -5,46 +5,61 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { styles } from '../constants'; 
 import { Omega } from 'lucide-react-native';
 
-//base de datoos
-//import { database } from '../database';
+//Aqui importo mi nueva api para hacer las consultas a postgre
+import { insertLog, getLogsPaginated } from '../api';
+import { useIsFocused } from '@react-navigation/native';
+
 
 
 //Empiezo a imnportar mis propios componentes:
 import { LockButton, ActivityItem } from '../components';
-import { insertLog, getAllLogs } from '../database'; 
-import { useIsFocused } from '@react-navigation/native';
+
 
 
 
 export default function HomeScreen() {
   const [isLocked, setIsLocked] = useState(true); 
-
   const [recentLogs, setRecentLogs] = useState([]);
-  const isFocused = useIsFocused();
+  const isFocused = useIsFocused(); // Para recargar al entrar a la pestaña
 
-  useEffect(() => {
-    if (isFocused) {
-      const data = getAllLogs();
-      setRecentLogs(data.slice(0, 6)); // Tomamos solo los 4 más recientes
-    }
-  }, [isFocused]);
-
-  const registrarAcceso = (nuevoEstado) => {
+  // Nueva función asíncrona para cargar datos de PostgreSQL
+  const cargarDatos = async () => {
     try {
-      // El jefe siempre es Master Tronic
-      const nombre = "Master Tronic";
-      const accion = nuevoEstado ? "Locked" : "Unlocked";
-      const unlockedBit = !nuevoEstado; // Si Locked es false, está Unlocked
-
-      insertLog(nombre, accion, unlockedBit);
-      console.log("¡Log guardado en SQLite!");
+      // 2. CAMBIO: Llamar a la nueva función
+      // Enviamos la fecha de hoy, página 1, y límite de 4 para "Actividad Reciente"
+      const hoy = new Date().toISOString().split('T')[0];
+      const respuesta = await getLogsPaginated(hoy, 1, 4);
+      
+      if (respuesta && respuesta.data) {
+        setRecentLogs(respuesta.data);
+      }
     } catch (error) {
-      console.error("Error en SQLite:", error);
+      console.error("Error al cargar actividad reciente:", error);
     }
   };
 
+  // Cargar datos cada vez que la pantalla se muestra
+  useEffect(() => {
+    if (isFocused) {
+      cargarDatos();
+    }
+  }, [isFocused]);
 
-
+  // Nueva función asíncrona para registrar el acceso
+  const registrarAcceso = async (nuevoEstado) => {
+    try {
+      const isUnlocked = !nuevoEstado;
+      
+      // Simulamos: Candado ID 1, Tarjeta ID 1 (Master Tronic)
+      await insertLog(1, 1, isUnlocked); 
+      
+      console.log("¡Log enviado a la API!");
+      await cargarDatos(); // Actualiza la lista en pantalla
+      
+    } catch (error) {
+      console.error("Fallo al registrar acceso:", error);
+    }
+  };
 
   return (
     <ScrollView 
@@ -82,18 +97,23 @@ export default function HomeScreen() {
     </View>
 
         <View>
-            {/* Renderizado de las tarjetas reutilizables */}
-        
-  {recentLogs.map((log) => (
-    <ActivityItem 
-      key={log.id}
-      initials="MT"
-      name={log.employee_name}
-      timeAction={log.created_at}
-      isUnlocked={log.is_unlocked === 1}
-    />
-  ))}
-
+            {/* Renderizado de tarjetas desde la API */}
+        {recentLogs.length === 0 ? (
+          <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No hay Actividad reciente</Text>
+        ) : (
+          recentLogs.map((log) => (
+            <ActivityItem 
+              key={log.id}
+              initials="MT" 
+              // 1. Aquí mapeamos la nueva estructura de PostgreSQL
+              name={`Candado #${log.lock_id} - Tarjeta #${log.nfc_card_id}`} 
+              // 2. Aquí convertimos ese texto feo de fecha en una hora legible (Ej: "8:12:46 PM")
+              timeAction={new Date(log.created_at).toLocaleTimeString()} 
+              // 3. PostgreSQL ya nos da true/false directamente
+              isUnlocked={log.is_unlocked} 
+            />
+          ))
+        )}
         {/* ... Sección inferior (Navegación)... */}
         </View>
     </ScrollView>

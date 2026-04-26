@@ -5,7 +5,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { styles } from './src/constants'; 
-import { initDB } from './src/database'; // Ajusta la ruta
 
 
 //Esto de aqui son mis pantallas.
@@ -19,7 +18,7 @@ const logo = require('./assets/logo-provisional.png');
 
 export default function App() {
   useEffect(() => {
-    initDB(); // Se ejecuta una sola vez al arrancar
+    //initDB(); // Se ejecuta una sola vez al arrancar
   }, []);
   return (
     <SafeAreaProvider style={styles.safeArea}>
