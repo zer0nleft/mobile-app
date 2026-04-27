@@ -104,15 +104,16 @@ export default function LogsScreen() {
         <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No hay registros para este día</Text>
       ) : (
         <FlatList
-          data={logs}
-          keyExtractor={(item) => item.id.toString()}
+        data={logs}
+        keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
           contentContainerStyle={styles.content}
           renderItem={({ item }) => (
             <LogItem 
               id={item.id}
               initials="MT"
-              name={`Candado #${item.lock_id} - Tarjeta #${item.nfc_card_id}`}
-              timeAction={new Date(item.created_at).toLocaleTimeString()} // Solo mostrar la hora, ya que el día está arriba
+              // Reemplazamos aquí también
+              name={`Candado #${item.lock_id} - Master Tronics`}
+              timeAction={new Date(item.created_at).toLocaleTimeString()} 
               isUnlocked={item.is_unlocked} 
             />
           )}

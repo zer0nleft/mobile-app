@@ -42,3 +42,71 @@ export const getLogsPaginated = async (dateStr, page = 1, limit = 10) => {
     return { data: [], currentPage: 1, totalPages: 1 }; 
   }
 };
+
+
+
+//===========================================
+//CRUD DE USUARIOS:
+//===========================================
+
+// ---- CRUD USUARIOS ----
+
+export const getWorkers = async () => {
+  try {
+    const response = await fetch(`${API_URL}/workers`);
+    
+    // Si el servidor no responde con un OK (ej. 404 o 500)
+    if (!response.ok) {
+      alert(`Error del Servidor: ${response.status}`);
+      return [];
+    }
+
+    return await response.json();
+  } catch (error) { 
+    // Si el celular ni siquiera logra encontrar a la computadora (Error de red/IP)
+    alert(`Error de Conexión: No puedo llegar a ${API_URL}. Revisa la IP o el Wi-Fi.`);
+    console.error(error); 
+    return []; 
+  }
+};
+
+export const createWorker = async (workerData) => {
+  try {
+    await fetch(`${API_URL}/workers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(workerData),
+    });
+  } catch (error) { console.error(error); }
+};
+
+export const updateWorker = async (id, workerData) => {
+  try {
+    await fetch(`${API_URL}/workers/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(workerData),
+    });
+  } catch (error) { console.error(error); }
+};
+
+export const deleteWorker = async (id) => {
+  try {
+    await fetch(`${API_URL}/workers/${id}`, { method: 'DELETE' });
+  } catch (error) { console.error(error); }
+};
+
+// Le cambiamos el nombre para que sea claro que es paginada
+export const getLogsByUserPaginated = async (userId, dateStr, page = 1, limit = 10) => {
+  try {
+    const url = `${API_URL}/logs/user/${userId}?date=${dateStr}&page=${page}&limit=${limit}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) throw new Error("Error del servidor");
+    
+    return await response.json(); // Ahora devuelve { data, currentPage, totalPages }
+  } catch (error) { 
+    console.error("Error obteniendo logs del usuario:", error); 
+    return { data: [], currentPage: 1, totalPages: 1 }; 
+  }
+};

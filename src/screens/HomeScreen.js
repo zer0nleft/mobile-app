@@ -1,35 +1,44 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Image, Pressable, ScrollView } from 'react-native'; 
-import { useState, useEffect } from 'react'; 
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, ScrollView, Animated, TouchableOpacity } from 'react-native'; 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { styles } from '../constants'; 
-import { Omega } from 'lucide-react-native';
-
-//Aqui importo mi nueva api para hacer las consultas a postgre
-import { insertLog, getLogsPaginated } from '../api';
 import { useIsFocused } from '@react-navigation/native';
+import * as LocalAuthentication from 'expo-local-authentication';
 
-
-
-//Empiezo a imnportar mis propios componentes:
+import { insertLog, getLogsPaginated } from '../api'; 
 import { LockButton, ActivityItem } from '../components';
-
-
-
+import { styles } from '../constants'; 
 
 export default function HomeScreen() {
   const [isLocked, setIsLocked] = useState(true); 
   const [recentLogs, setRecentLogs] = useState([]);
-  const isFocused = useIsFocused(); // Para recargar al entrar a la pestaña
+  
+  // Nuevos estados para la seguridad
+  const [hasBiometrics, setHasBiometrics] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  
+  // Referencia para la animación de vibración del candado
+  const shakeAnimation = useRef(new Animated.Value(0)).current;
 
-  // Nueva función asíncrona para cargar datos de PostgreSQL
+  const isFocused = useIsFocused();
+
+  // 1. EVALUAR EL HARDWARE AL CARGAR LA PANTALLA
+  useEffect(() => {
+    const verificarHardware = async () => {
+      // ¿El teléfono tiene hardware biométrico?
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      // ¿El usuario tiene alguna huella registrada?
+      const records = await LocalAuthentication.isEnrolledAsync();
+      
+      setHasBiometrics(compatible && records);
+    };
+    
+    verificarHardware();
+  }, []);
+
   const cargarDatos = async () => {
     try {
-      // 2. CAMBIO: Llamar a la nueva función
-      // Enviamos la fecha de hoy, página 1, y límite de 4 para "Actividad Reciente"
       const hoy = new Date().toISOString().split('T')[0];
       const respuesta = await getLogsPaginated(hoy, 1, 4);
-      
       if (respuesta && respuesta.data) {
         setRecentLogs(respuesta.data);
       }
@@ -38,84 +47,98 @@ export default function HomeScreen() {
     }
   };
 
-  // Cargar datos cada vez que la pantalla se muestra
   useEffect(() => {
-    if (isFocused) {
-      cargarDatos();
-    }
+    if (isFocused) cargarDatos();
   }, [isFocused]);
 
-  // Nueva función asíncrona para registrar el acceso
-  const registrarAcceso = async (nuevoEstado) => {
+  // 2. FUNCIÓN DE ANIMACIÓN (VIBRACIÓN)
+  const hacerVibrarCandado = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnimation, { toValue: 15, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: -15, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: 15, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: 0, duration: 100, useNativeDriver: true })
+    ]).start();
+  };
+
+  // 3. NÚCLEO DE AUTENTICACIÓN (Unificado y Flexible)
+  const manejarAutenticacion = async () => {
+    const proximoEstado = !isLocked;
+    
     try {
-      const isUnlocked = !nuevoEstado;
-      
-      // Simulamos: Candado ID 1, Tarjeta ID 1 (Master Tronic)
-      await insertLog(1, 1, isUnlocked); 
-      
-      console.log("¡Log enviado a la API!");
-      await cargarDatos(); // Actualiza la lista en pantalla
-      
+      // Opciones flexibles: Pide huella si hay, pero siempre permite usar el PIN
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: hasBiometrics ? 'Verifica tu identidad' : 'Ingresa tu PIN o Patrón',
+        fallbackLabel: 'Usar Patrón/PIN', 
+        disableDeviceFallback: false, // Esto es lo que lo hace flexible
+      });
+
+      if (result.success) {
+        setIsLocked(proximoEstado);      
+        await insertLog(1, 1, !proximoEstado); 
+        await cargarDatos(); 
+      } else {
+        throw new Error("Autenticación fallida o cancelada");
+      }
     } catch (error) {
-      console.error("Fallo al registrar acceso:", error);
+      hacerVibrarCandado();
+      setErrorMessage("La verificación de seguridad ha sido incorrecta");
+      
+      setTimeout(() => {
+        setErrorMessage(null);
+      }, 6000);
     }
   };
 
   return (
-    <ScrollView 
-        style={styles.container} 
-        contentContainerStyle={styles.content} 
-        showsVerticalScrollIndicator={false}
-    >
- 
-
-    
-    {/* Esto es el candado con su boton y su logo */}
-    <View style={styles.lockContainer}>
-        <MaterialCommunityIcons 
-          // Cambiamos el icono según isUnlocked
-          name={isLocked ?  "lock-outline":"lock-open-outline"} 
-          size={200} 
-          // Cambiamos el color según isUnlocked (verde para abierto, rojo para cerrado)
-          color={isLocked ?  "#F44336":"#4CAF50"} 
-        />
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         
-    <LockButton
-      isLocked={isLocked}
-      onPress={() => {
-        const proximoEstado = !isLocked; 
-        setIsLocked(proximoEstado);      
-        registrarAcceso(proximoEstado);  // Guardamos en la base de datos
-      }}
-    />
+        {/* Contenedor del Candado con Animación */}
+        <Animated.View style={[styles.lockContainer, { transform: [{ translateX: shakeAnimation }] }]}>
+            <MaterialCommunityIcons 
+              name={isLocked ? "lock-outline" : "lock-open-outline"} 
+              size={180} 
+              color={isLocked ? "#F44336" : "#4CAF50"} 
+            />
+            
+            {/* Contenedor Horizontal para los botones */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20 }}>
+              
+              <LockButton
+                isLocked={isLocked}
+                onPress={manejarAutenticacion} // Llamada simple
+              />
 
-    </View>
+            </View>
 
-    <View style={styles.verticalSeparator}>
-        <Text style={styles.titlesToLeft}>Actividad Reciente:</Text>
+            {/* Mensaje de error condicional */}
+            {errorMessage && (
+              <Text style={{ color: '#F44336', marginTop: 15, fontWeight: 'bold', textAlign: 'center' }}>
+                {errorMessage}
+              </Text>
+            )}
 
-    </View>
+        </Animated.View>
 
-        <View>
-            {/* Renderizado de tarjetas desde la API */}
+        <View style={styles.verticalSeparator}>
+            <Text style={styles.titlesToLeft}>Actividad Reciente:</Text>
+        </View>
+
+        {/* Renderizado de tarjetas */}
         {recentLogs.length === 0 ? (
-          <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No hay Actividad reciente</Text>
+          <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>Cargando actividad...</Text>
         ) : (
           recentLogs.map((log) => (
             <ActivityItem 
               key={log.id}
               initials="MT" 
-              // 1. Aquí mapeamos la nueva estructura de PostgreSQL
-              name={`Candado #${log.lock_id} - Tarjeta #${log.nfc_card_id}`} 
-              // 2. Aquí convertimos ese texto feo de fecha en una hora legible (Ej: "8:12:46 PM")
+              // Reemplazamos 'Tarjeta #X' por el nombre quemado temporalmente
+              name={`Candado #${log.lock_id} - Master Tronics`} 
               timeAction={new Date(log.created_at).toLocaleTimeString()} 
-              // 3. PostgreSQL ya nos da true/false directamente
               isUnlocked={log.is_unlocked} 
             />
           ))
         )}
-        {/* ... Sección inferior (Navegación)... */}
-        </View>
     </ScrollView>
   );
 }
