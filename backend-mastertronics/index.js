@@ -89,13 +89,42 @@ app.post('/logs', async (req, res) => {
   }
 });
 
-// Encender el servidor
-app.listen(port, '0.0.0.0', () => {
-  console.log(`🚀 Servidor backend corriendo en el puerto ${port}`);
+
+
+
+
+// GET: Resumen de estadísticas generales
+app.get('/stats/summary', async (req, res) => {
+  try {
+    const stats = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM access_logs) as total_logs,
+        (SELECT COUNT(*) FROM workers) as total_users,
+        (SELECT COUNT(*) FROM access_logs WHERE created_at::date = CURRENT_DATE) as today_logs,
+        (SELECT COUNT(*) FROM access_logs WHERE is_unlocked = true) as total_unlocks
+    `);
+    res.json(stats.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-
-
+// GET: Usuarios con más actividad (Top 5)
+app.get('/stats/top-users', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT w.first_name, w.last_name, COUNT(al.id) as activity_count
+      FROM access_logs al
+      JOIN workers w ON al.nfc_card_id = w.id
+      GROUP BY w.id, w.first_name, w.last_name
+      ORDER BY activity_count DESC
+      LIMIT 5
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 
@@ -227,3 +256,40 @@ app.get('/logs/user/:id', async (req, res) => {
     res.status(500).json({ error: 'Error obteniendo historial del usuario' });
   }
 });
+
+
+// GET: Obtener logs en un rango de fechas para el Reporte PDF
+app.get('/logs/report', async (req, res) => {
+  const { startDate, endDate } = req.query;
+  try {
+    const result = await pool.query(`
+      SELECT 
+        al.created_at, 
+        w.first_name, 
+        w.last_name, 
+        al.lock_id, 
+        al.action_type, 
+        al.is_unlocked
+      FROM access_logs al
+      JOIN workers w ON al.nfc_card_id = w.id
+      WHERE al.created_at::date >= $1 AND al.created_at::date <= $2
+      ORDER BY al.created_at DESC
+    `, [startDate, endDate]);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error generando datos para reporte:", error);
+    res.status(500).json({ error: 'Error al generar datos del reporte' });
+  }
+});
+
+
+
+
+
+
+
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Servidor backend corriendo en el puerto ${port}`);
+});
+

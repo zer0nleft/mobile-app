@@ -35,9 +35,15 @@ export default function HomeScreen() {
     verificarHardware();
   }, []);
 
-  const cargarDatos = async () => {
+const cargarDatos = async () => {
     try {
-      const hoy = new Date().toISOString().split('T')[0];
+      // Extraemos la fecha local exacta del teléfono (YYYY-MM-DD)
+      const tzDate = new Date();
+      const year = tzDate.getFullYear();
+      const month = String(tzDate.getMonth() + 1).padStart(2, '0');
+      const day = String(tzDate.getDate()).padStart(2, '0');
+      const hoy = `${year}-${month}-${day}`;
+      
       const respuesta = await getLogsPaginated(hoy, 1, 4);
       if (respuesta && respuesta.data) {
         setRecentLogs(respuesta.data);
@@ -46,7 +52,6 @@ export default function HomeScreen() {
       console.error("Error al cargar actividad reciente:", error);
     }
   };
-
   useEffect(() => {
     if (isFocused) cargarDatos();
   }, [isFocused]);

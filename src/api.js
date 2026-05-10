@@ -110,3 +110,30 @@ export const getLogsByUserPaginated = async (userId, dateStr, page = 1, limit = 
     return { data: [], currentPage: 1, totalPages: 1 }; 
   }
 };
+
+
+//OBTENER ESTADISTICAS
+export const getStatsSummary = async () => {
+  try {
+    const response = await fetch(`${API_URL}/stats/summary`);
+    return await response.json();
+  } catch (error) { console.error(error); return null; }
+};
+
+export const getTopUsers = async () => {
+  try {
+    const response = await fetch(`${API_URL}/stats/top-users`);
+    return await response.json();
+  } catch (error) { console.error(error); return []; }
+};
+
+export const getLogsForReport = async (startDate, endDate) => {
+  try {
+    const response = await fetch(`${API_URL}/logs/report?startDate=${startDate}&endDate=${endDate}`);
+    if (!response.ok) throw new Error("Error del servidor");
+    return await response.json();
+  } catch (error) {
+    console.error("Error obteniendo datos para el reporte:", error);
+    return [];
+  }
+};

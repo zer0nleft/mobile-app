@@ -110,9 +110,13 @@ export default function UsersScreen() {
     setModalVisible(false);
     cargarUsuarios();
   };
-  const cargarLogsUsuario = async (userId, fecha, pagina) => {
-    try {
-      const dateStr = fecha.toISOString().split('T')[0];
+const cargarLogsUsuario = async (userId, fecha, pagina) => {
+      // Extraemos la fecha local exacta del calendario del modal
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, '0');
+      const day = String(fecha.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`; 
+      
       const respuesta = await getLogsByUserPaginated(userId, dateStr, pagina, 10);
       
       if (respuesta && respuesta.data) {
@@ -120,10 +124,7 @@ export default function UsersScreen() {
         setLogPage(respuesta.currentPage);
         setLogTotalPages(respuesta.totalPages);
       }
-    } catch (error) {
-      console.error("Error al pedir los logs del usuario:", error);
-    }
-  };
+    };
 
 
   const confirmarEliminacion = (id) => {

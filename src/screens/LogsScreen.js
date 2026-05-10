@@ -22,10 +22,14 @@ export default function LogsScreen() {
   const isFocused = useIsFocused();
 
   // Función principal de carga
-  const cargarLogs = async (fecha, pagina) => {
+const cargarLogs = async (fecha, pagina) => {
     setIsLoading(true);
-    // Formateamos la fecha a YYYY-MM-DD para PostgreSQL
-    const dateStr = fecha.toISOString().split('T')[0]; 
+    
+    // Extraemos la fecha local exacta del calendario
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`; 
     
     const respuesta = await getLogsPaginated(dateStr, pagina, 10);
     
