@@ -1,18 +1,23 @@
-import React, { useState, useEffect, useContext } from 'react'; // Añadimos useContext
-import { AuthContext } from '../context/AuthContext'; // Importamos el contexto que creamos
+import React, { useState, useEffect, useContext } from 'react'; // <-- Añadido useContext
 import { View, ScrollView, Text, TextInput, TouchableOpacity, FlatList, Modal, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useIsFocused, } from '@react-navigation/native';
-
+import { useIsFocused } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+// 1. CORREGIDO: getLogsByUserPaginated
 import { getWorkers, createWorker, updateWorker, deleteWorker, getLogsByUserPaginated } from '../api';
-import { LogItem } from '../components'; // Asegúrate de tener esto
-// Importamos styles pero NO lo usaremos en el contenedor principal para evitar el colapso
+import { LogItem } from '../components'; 
 import { styles } from '../constants'; 
+
+// 2. AÑADIDO: Importar el contexto para saber si es Jefe o Empleado
+import { AuthContext } from '../context/AuthContext';
 
 export default function UsersScreen() {
   //para obtener quien es el usuario que esta actualmente logeado
-  const { currentUser } = useContext(AuthContext);
+  // 3. AÑADIDO: Extraer quién inició sesión
+  const { currentUser } = useContext(AuthContext); 
+
+  // ... resto de tus estados
   // Estados para el Modal de Historial Paginado
   const [userLogs, setUserLogs] = useState([]);
   const [isLogModalVisible, setLogModalVisible] = useState(false);
@@ -175,34 +180,37 @@ const cargarLogsUsuario = async (userId, fecha, pagina) => {
           </View>
         }
 
-        renderItem={({ item }) => (
-          <View style={{ backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10, elevation: 2, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.first_name} {item.last_name}</Text>
-              <Text style={{ color: '#666' }}>Código: {item.worker_code}</Text>
-              <Text style={{ color: item.access_level === 1 ? '#D32F2F' : '#2196F3', fontWeight: 'bold', marginTop: 5 }}>
-                {item.access_level === 1 ? '👑 Jefe' : '👤 Empleado'}
-              </Text>
+        renderItem={({ item }) => {
+          // ¡AQUÍ FALTABA EL RETURN Y EL PARÉNTESIS!
+          return (
+            <View style={{ backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10, elevation: 2, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.first_name} {item.last_name}</Text>
+                <Text style={{ color: '#666' }}>Código: {item.worker_code}</Text>
+                <Text style={{ color: item.access_level === 1 ? '#D32F2F' : '#2196F3', fontWeight: 'bold', marginTop: 5 }}>
+                  {item.access_level === 1 ? '👑 Jefe' : '👤 Empleado'}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row' }}>
+                {/* Botón de ver historial */}
+                <TouchableOpacity onPress={() => verHistorialUsuario(item)} style={{ marginRight: 15 }}>
+                  <MaterialCommunityIcons name="clipboard-text-clock" size={24} color="#2196F3" />
+                </TouchableOpacity>
+                {currentUser?.access_level === 1 && (
+                    <>
+                      <TouchableOpacity onPress={() => abrirParaEditar(item)} style={{ marginRight: 15 }}>
+                        <MaterialCommunityIcons name="pencil" size={24} color="#FFA000" />
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity onPress={() => confirmarEliminacion(item.id)}>
+                        <MaterialCommunityIcons name="trash-can" size={24} color="#F44336" />
+                      </TouchableOpacity>
+                    </>
+                  )}
+              </View>
             </View>
-            <View style={{ flexDirection: 'row' }}>
-              {/* Botón de ver historial */}
-              <TouchableOpacity onPress={() => verHistorialUsuario(item)} style={{ marginRight: 15 }}>
-                <MaterialCommunityIcons name="clipboard-text-clock" size={24} color="#2196F3" />
-              </TouchableOpacity>
-              {currentUser?.access_level === 1 && (
-                  <>
-                    <TouchableOpacity onPress={() => abrirParaEditar(item)} style={{ marginRight: 15 }}>
-                      <MaterialCommunityIcons name="pencil" size={24} color="#FFA000" />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity onPress={() => confirmarEliminacion(item.id)}>
-                      <MaterialCommunityIcons name="trash-can" size={24} color="#F44336" />
-                    </TouchableOpacity>
-                  </>
-                )}
-            </View>
-          </View>
-        )}
+          );
+        }}
       />
 
       {/* TU MODAL NATIVO ORIGINAL QUE FUNCIONA */}
@@ -308,19 +316,22 @@ const cargarLogsUsuario = async (userId, fecha, pagina) => {
             )}
 
             {/* LISTA DE ACCESOS */}
-            <FlatList
+              <FlatList
               data={userLogs}
               keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
               ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#999', marginTop: 20 }}>No hay accesos en esta fecha.</Text>}
-              renderItem={({ item }) => (
-                <LogItem 
-                  id={item.id}
-                  initials="MT" // Simulación temporal de sesión
-                  name={`Candado #${item.lock_id} - Master Tronics`} // Simulación temporal
-                  timeAction={new Date(item.created_at).toLocaleTimeString()}
-                  isUnlocked={item.is_unlocked} 
-                />
-              )}
+              renderItem={({ item }) => {
+                // ¡AQUÍ FALTABA EL RETURN!
+                return (
+                  <LogItem 
+                    id={item.id}
+                    initials="MT" // Ojo: Aquí podrías usar las iniciales reales de `selectedUser`
+                    name={`Candado #${item.lock_id} - Master Tronics`} // Y aquí el nombre real
+                    timeAction={new Date(item.created_at).toLocaleTimeString()}
+                    isUnlocked={item.is_unlocked} 
+                  />
+                );
+              }}
             />
 
             {/* CONTROLES DE PAGINACIÓN */}

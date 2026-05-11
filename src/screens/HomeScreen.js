@@ -3,12 +3,14 @@ import { StyleSheet, Text, View, ScrollView, Animated, TouchableOpacity } from '
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import * as LocalAuthentication from 'expo-local-authentication';
-
+import { AuthContext } from '../context/AuthContext';
+import { useContext } from 'react'; // Si no lo tenías importado
 import { insertLog, getLogsPaginated } from '../api'; 
 import { LockButton, ActivityItem } from '../components';
 import { styles } from '../constants'; 
 
 export default function HomeScreen() {
+  const { currentUser } = useContext(AuthContext);
   const [isLocked, setIsLocked] = useState(true); 
   const [recentLogs, setRecentLogs] = useState([]);
   
@@ -80,7 +82,17 @@ const cargarDatos = async () => {
 
       if (result.success) {
         setIsLocked(proximoEstado);      
-        await insertLog(1, 1, !proximoEstado); 
+        
+        // 1. Atrapamos el ID por sus posibles nombres y lo imprimimos en la consola
+        const idUsuario = currentUser.id || currentUser.worker_id;
+        console.log("Intentando guardar log con ID de Usuario:", idUsuario);
+
+        if (!idUsuario) {
+          throw new Error("El usuario actual no tiene un ID válido");
+        }
+
+        // 2. Enviamos el ID asegurado a la base de datos
+        await insertLog(1, idUsuario, !proximoEstado); 
         await cargarDatos(); 
       } else {
         throw new Error("Autenticación fallida o cancelada");
@@ -133,16 +145,21 @@ const cargarDatos = async () => {
         {recentLogs.length === 0 ? (
           <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>Cargando actividad...</Text>
         ) : (
-          recentLogs.map((log) => (
-            <ActivityItem 
-              key={log.id}
-              initials="MT" 
-              // Reemplazamos 'Tarjeta #X' por el nombre quemado temporalmente
-              name={`Candado #${log.lock_id} - Master Tronics`} 
-              timeAction={new Date(log.created_at).toLocaleTimeString()} 
-              isUnlocked={log.is_unlocked} 
-            />
-          ))
+          recentLogs.map((log) => {
+            const iniciales = `${log.first_name?.charAt(0) || ''}${log.last_name?.charAt(0) || ''}`.toUpperCase();
+            const nombreCompleto = `${log.first_name || 'Usuario'} ${log.last_name || 'Eliminado'}`;
+            
+            // ¡AQUÍ FALTABA EL RETURN!
+            return (
+              <ActivityItem 
+                key={log.id}
+                initials={iniciales || '??'} 
+                name={`Candado #${log.lock_id} - ${nombreCompleto}`} 
+                timeAction={new Date(log.created_at).toLocaleTimeString()} 
+                isUnlocked={log.is_unlocked} 
+              />
+            );
+          })
         )}
     </ScrollView>
   );

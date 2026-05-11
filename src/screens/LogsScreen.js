@@ -107,20 +107,25 @@ const cargarLogs = async (fecha, pagina) => {
       ) : logs.length === 0 ? (
         <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No hay registros para este día</Text>
       ) : (
-        <FlatList
-        data={logs}
-        keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
+      <FlatList
+          data={logs}
+          keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
           contentContainerStyle={styles.content}
-          renderItem={({ item }) => (
-            <LogItem 
-              id={item.id}
-              initials="MT"
-              // Reemplazamos aquí también
-              name={`Candado #${item.lock_id} - Master Tronics`}
-              timeAction={new Date(item.created_at).toLocaleTimeString()} 
-              isUnlocked={item.is_unlocked} 
-            />
-          )}
+          renderItem={({ item }) => {
+            const iniciales = `${item.first_name?.charAt(0) || ''}${item.last_name?.charAt(0) || ''}`.toUpperCase();
+            const nombreCompleto = `${item.first_name || 'Usuario'} ${item.last_name || 'Desconocido'}`;
+            
+            // ¡AQUÍ FALTABA EL RETURN!
+            return (
+              <LogItem 
+                id={item.id}
+                initials={iniciales || '??'}
+                name={`Candado #${item.lock_id} - ${nombreCompleto}`}
+                timeAction={new Date(item.created_at).toLocaleTimeString()} 
+                isUnlocked={item.is_unlocked} 
+              />
+            );
+          }}
         />
       )}
 
