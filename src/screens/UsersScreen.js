@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react'; // Añadimos useContext
+import { AuthContext } from '../context/AuthContext'; // Importamos el contexto que creamos
 import { View, ScrollView, Text, TextInput, TouchableOpacity, FlatList, Modal, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, } from '@react-navigation/native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getWorkers, createWorker, updateWorker, deleteWorker, getLogsByUserPaginated } from '../api';
@@ -10,6 +11,8 @@ import { LogItem } from '../components'; // Asegúrate de tener esto
 import { styles } from '../constants'; 
 
 export default function UsersScreen() {
+  //para obtener quien es el usuario que esta actualmente logeado
+  const { currentUser } = useContext(AuthContext);
   // Estados para el Modal de Historial Paginado
   const [userLogs, setUserLogs] = useState([]);
   const [isLogModalVisible, setLogModalVisible] = useState(false);
@@ -26,7 +29,7 @@ export default function UsersScreen() {
   const isFocused = useIsFocused();
   
   const [editingId, setEditingId] = useState(null); 
-  const [form, setForm] = useState({ first_name: '', last_name: '', worker_code: '', access_level: 0 });
+  const [form, setForm] = useState({ first_name: '', last_name: '', worker_code: '', access_level: 0, password: '' });
 
 
 
@@ -80,7 +83,7 @@ export default function UsersScreen() {
 
   const abrirParaCrear = () => {
     setEditingId(null);
-    setForm({ first_name: '', last_name: '', worker_code: '', access_level: 0 });
+    setForm({ first_name: '', last_name: '', worker_code: '', access_level: 0, password: '' }); // <-- Añadido
     setModalVisible(true);
   };
 
@@ -90,7 +93,8 @@ export default function UsersScreen() {
       first_name: user.first_name, 
       last_name: user.last_name, 
       worker_code: user.worker_code, 
-      access_level: user.access_level 
+      access_level: user.access_level,
+      password: user.password || '' // <-- Añadido (carga la actual)
     });
     setModalVisible(true);
   };
@@ -148,9 +152,11 @@ const cargarLogsUsuario = async (userId, fecha, pagina) => {
       
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333' }}>Gestión de Usuarios</Text>
-        <TouchableOpacity onPress={abrirParaCrear} style={{ backgroundColor: '#4CAF50', padding: 10, borderRadius: 8 }}>
-          <MaterialCommunityIcons name="plus" size={24} color="white" />
-        </TouchableOpacity>
+        {currentUser?.access_level === 1 && (
+          <TouchableOpacity onPress={abrirParaCrear} style={{ backgroundColor: '#4CAF50', padding: 10, borderRadius: 8 }}>
+            <MaterialCommunityIcons name="plus" size={24} color="white" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* LISTA DE USUARIOS CON CONTENEDOR EXPANDIDO */}
@@ -183,14 +189,17 @@ const cargarLogsUsuario = async (userId, fecha, pagina) => {
               <TouchableOpacity onPress={() => verHistorialUsuario(item)} style={{ marginRight: 15 }}>
                 <MaterialCommunityIcons name="clipboard-text-clock" size={24} color="#2196F3" />
               </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => abrirParaEditar(item)} style={{ marginRight: 15 }}>
-                <MaterialCommunityIcons name="pencil" size={24} color="#FFA000" />
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => confirmarEliminacion(item.id)}>
-                <MaterialCommunityIcons name="trash-can" size={24} color="#F44336" />
-              </TouchableOpacity>
+              {currentUser?.access_level === 1 && (
+                  <>
+                    <TouchableOpacity onPress={() => abrirParaEditar(item)} style={{ marginRight: 15 }}>
+                      <MaterialCommunityIcons name="pencil" size={24} color="#FFA000" />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity onPress={() => confirmarEliminacion(item.id)}>
+                      <MaterialCommunityIcons name="trash-can" size={24} color="#F44336" />
+                    </TouchableOpacity>
+                  </>
+                )}
             </View>
           </View>
         )}
@@ -229,6 +238,13 @@ const cargarLogsUsuario = async (userId, fecha, pagina) => {
                 value={form.worker_code} 
                 onChangeText={(text) => setForm({...form, worker_code: text})} 
                 style={{ borderWidth: 1, borderColor: '#ccc', padding: 10, marginBottom: 15, borderRadius: 8 }} 
+              />
+              <TextInput 
+                placeholder="Contraseña de Acceso" 
+                value={form.password} 
+                onChangeText={(text) => setForm({...form, password: text})} 
+                style={{ borderWidth: 1, borderColor: '#ccc', padding: 10, marginBottom: 15, borderRadius: 8 }} 
+                secureTextEntry={false} // Lo dejamos visible para que el Jefe sepa qué le está asignando
               />
 
               <Text style={{ marginBottom: 5, fontWeight: 'bold', color: '#555' }}>Nivel de Acceso:</Text>

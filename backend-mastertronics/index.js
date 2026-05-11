@@ -155,18 +155,16 @@ app.get('/workers', async (req, res) => {
   }
 });
 
-// POST: Crear un nuevo usuario
+// POST: Crear un nuevo usuario (CON CONTRASEÑA)
 app.post('/workers', async (req, res) => {
-  const { first_name, last_name, worker_code, access_level } = req.body;
+  const { first_name, last_name, worker_code, access_level, password } = req.body;
   
   try {
     const result = await pool.query(
-      `INSERT INTO workers (first_name, last_name, worker_code, access_level) 
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [first_name, last_name, worker_code, access_level || 0]
+      `INSERT INTO workers (first_name, last_name, worker_code, access_level, password) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [first_name, last_name, worker_code, access_level || 0, password || '1234'] // 1234 por defecto si lo dejan vacío
     );
-    
-    // Devolvemos el usuario recién creado con un código 201 (Creado)
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error al crear usuario en BD:", error.message);
@@ -174,16 +172,16 @@ app.post('/workers', async (req, res) => {
   }
 });
 
-// PUT: Actualizar un usuario existente
+// PUT: Actualizar un usuario existente (CON CONTRASEÑA)
 app.put('/workers/:id', async (req, res) => {
   const { id } = req.params;
-  const { first_name, last_name, worker_code, access_level } = req.body;
+  const { first_name, last_name, worker_code, access_level, password } = req.body;
   try {
     const result = await pool.query(
       `UPDATE workers 
-       SET first_name = $1, last_name = $2, worker_code = $3, access_level = $4 
-       WHERE id = $5 RETURNING *`, // CAMBIO: WHERE id = $5
-      [first_name, last_name, worker_code, access_level, id]
+       SET first_name = $1, last_name = $2, worker_code = $3, access_level = $4, password = $5 
+       WHERE id = $6 RETURNING *`, 
+      [first_name, last_name, worker_code, access_level, password, id]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -283,7 +281,24 @@ app.get('/logs/report', async (req, res) => {
   }
 });
 
+// POST: Iniciar sesión
+app.post('/login', async (req, res) => {
+  const { worker_code, password } = req.body;
+  try {
+    const result = await pool.query(
+      'SELECT id, first_name, last_name, worker_code, access_level FROM workers WHERE worker_code = $1 AND password = $2',
+      [worker_code, password]
+    );
 
+    if (result.rows.length > 0) {
+      res.json({ success: true, user: result.rows[0] });
+    } else {
+      res.status(401).json({ success: false, error: 'Credenciales inválidas' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
 
 
 

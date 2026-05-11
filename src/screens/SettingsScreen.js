@@ -1,18 +1,17 @@
-import React from 'react';
+import React, { useContext } from 'react'; // 1. IMPORTAR useContext
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { AuthContext } from '../context/AuthContext'; // 2. IMPORTAR EL CONTEXTO
 
 export default function SettingsScreen({ navigation }) {
   
+  const { logout } = useContext(AuthContext);
+
   const handleLogout = () => {
-    Alert.alert(
-      "Cerrar Sesión",
-      "¿Estás seguro de que quieres salir?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Salir", onPress: () => console.log("Logout próximamente...") }
-      ]
-    );
+    Alert.alert("Cerrar Sesión", "¿Salir del sistema?", [
+      { text: "No" },
+      { text: "Sí, Salir", onPress: () => logout() } // <--- Aquí es donde ocurre la magia
+    ]);
   };
 
   const OptionButton = ({ title, icon, color, onPress, isDestructive = false }) => (
@@ -66,5 +65,6 @@ export default function SettingsScreen({ navigation }) {
       
       <Text style={{ textAlign: 'center', color: '#AAA', marginTop: 40 }}>Versión 1.0.4 - Master Tronics</Text>
     </View>
+    
   );
 }

@@ -137,3 +137,17 @@ export const getLogsForReport = async (startDate, endDate) => {
     return [];
   }
 };
+
+export const loginWorker = async (worker_code, password) => {
+  try {
+    const response = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ worker_code, password }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Error en login:", error);
+    return { success: false, error: 'Error de conexión' };
+  }
+};
