@@ -293,6 +293,27 @@ app.post('/login', async (req, res) => {
 });
 
 
+// GET: Consultar el estado actual del candado físico
+app.get('/hardware/lock-status', async (req, res) => {
+  try {
+    // Buscamos el último log registrado del candado #1
+    const result = await pool.query(`
+      SELECT is_unlocked 
+      FROM access_logs 
+      WHERE lock_id = 1 
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+
+    // Si hay registros, devolvemos el estado. Si no hay, asumimos que está bloqueado (false)
+    const isUnlocked = result.rows.length > 0 ? result.rows[0].is_unlocked : false;
+    
+    res.json({ unlocked: isUnlocked });
+  } catch (error) {
+    res.status(500).json({ error: 'Error leyendo estado del hardware' });
+  }
+});
+
 
 
 
