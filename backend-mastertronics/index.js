@@ -11,14 +11,19 @@ app.use(express.json()); // Para poder leer los datos que manda la app
 
 // Configuración de la conexión a PostgreSQL
 // Asegúrate de cambiar la contraseña y el usuario si son diferentes
-const pool = new Pool({
+
+/*const pool = new Pool({
   user: 'postgres',
   host: '127.0.0.1', // <--- EL CAMBIO MÁGICO ESTÁ AQUÍ
   database: 'mastertronics_db',
   password: '123456', 
   port: 5432,
-});
+}); */
 
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false } // Render requiere SSL para conexiones externas
+});
 
 // Ruta 1: Obtener logs con Paginación y Nombres (GET /logs)
 app.get('/logs', async (req, res) => {
@@ -291,7 +296,7 @@ app.post('/login', async (req, res) => {
 
 
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`🚀 Servidor backend corriendo en el puerto ${port}`);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
-

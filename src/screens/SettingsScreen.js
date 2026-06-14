@@ -46,14 +46,7 @@ export default function SettingsScreen({ navigation }) {
         onPress={() => navigation.navigate('Stats')} 
       />
 
-      <OptionButton 
-        title="Configuración de Perfil" 
-        icon="account-cog" 
-        color="#666" 
-        onPress={() => {}} 
-      />
-
-      <View style={{ marginTop: 20 }}>
+      <View>
         <OptionButton 
           title="Cerrar Sesión" 
           icon="logout" 

@@ -44,7 +44,7 @@ export default function LoginScreen() {
         <MaterialCommunityIcons name="account-outline" size={24} color="#666" style={styles.icon} />
         <TextInput
           style={styles.input}
-          placeholder="Código (Ej: ADMIN-001)"
+          placeholder="Código NFC"
           value={workerCode}
           onChangeText={setWorkerCode}
           autoCapitalize="characters"

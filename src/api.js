@@ -2,7 +2,7 @@
 
 // IMPORTANTE: Cambia "192.168.X.X" por la dirección IP IPv4 de tu computadora.
 // Si estás en Windows, abre la consola (cmd), escribe "ipconfig" y busca "Dirección IPv4".
-const API_URL = 'http://192.168.0.100:3000'; 
+const API_URL = 'http://192.168.0.101:3000'; 
 
 export const insertLog = async (lockId, nfcCardId, isUnlocked) => {
   try {
