@@ -1,17 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { StyleSheet, Text, View, ScrollView, Animated, TouchableOpacity } from 'react-native'; 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import * as LocalAuthentication from 'expo-local-authentication';
+
+// Contexto y API (Imports agrupados y limpios)
 import { AuthContext } from '../context/AuthContext';
-import { useContext } from 'react'; // Si no lo tenías importado
-import { insertLog, getLogsPaginated } from '../api'; 
+import { insertLog, getLogsPaginated, getLockStatus } from '../api'; 
+
+// Componentes y estilos
 import { LockButton, ActivityItem } from '../components';
 import { styles } from '../constants'; 
 
 export default function HomeScreen() {
   const { currentUser } = useContext(AuthContext);
-  const [isLocked, setIsLocked] = useState(true); 
+  
+  // Estado principal del candado (true = cerrado, false = abierto)
+  const [isLocked, setIsLocked] = useState(true);
   const [recentLogs, setRecentLogs] = useState([]);
   
   // Nuevos estados para la seguridad
@@ -23,23 +28,51 @@ export default function HomeScreen() {
 
   const isFocused = useIsFocused();
 
-  // 1. EVALUAR EL HARDWARE AL CARGAR LA PANTALLA
+  // ==========================================
+  // 1. POLLING: Sincronización con la nube
+  // ==========================================
+  useEffect(() => {
+    const fetchCurrentStatus = async () => {
+      try {
+        const status = await getLockStatus();
+        // Si el servidor dice que está desbloqueado (true), 
+        // entonces isLocked debe ser false.
+        setIsLocked(!status.unlocked); 
+      } catch (error) {
+        console.error("Error consultando estado en segundo plano:", error);
+      }
+    };
+
+    // Consultar inmediatamente al abrir la pantalla
+    fetchCurrentStatus();
+
+    // Consultar automáticamente cada 3 segundos
+    const intervalId = setInterval(() => {
+      fetchCurrentStatus();
+    }, 3000);
+
+    // Limpiar el intervalo al salir de la pantalla para no saturar la memoria
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // ==========================================
+  // 2. VERIFICACIÓN DE HARDWARE BIOMÉTRICO
+  // ==========================================
   useEffect(() => {
     const verificarHardware = async () => {
-      // ¿El teléfono tiene hardware biométrico?
       const compatible = await LocalAuthentication.hasHardwareAsync();
-      // ¿El usuario tiene alguna huella registrada?
       const records = await LocalAuthentication.isEnrolledAsync();
-      
       setHasBiometrics(compatible && records);
     };
     
     verificarHardware();
   }, []);
 
-const cargarDatos = async () => {
+  // ==========================================
+  // 3. CARGAR EL HISTORIAL (LOGS)
+  // ==========================================
+  const cargarDatos = async () => {
     try {
-      // Extraemos la fecha local exacta del teléfono (YYYY-MM-DD)
       const tzDate = new Date();
       const year = tzDate.getFullYear();
       const month = String(tzDate.getMonth() + 1).padStart(2, '0');
@@ -54,11 +87,14 @@ const cargarDatos = async () => {
       console.error("Error al cargar actividad reciente:", error);
     }
   };
+
   useEffect(() => {
     if (isFocused) cargarDatos();
   }, [isFocused]);
 
-  // 2. FUNCIÓN DE ANIMACIÓN (VIBRACIÓN)
+  // ==========================================
+  // 4. ANIMACIÓN DE ERROR (VIBRACIÓN)
+  // ==========================================
   const hacerVibrarCandado = () => {
     Animated.sequence([
       Animated.timing(shakeAnimation, { toValue: 15, duration: 100, useNativeDriver: true }),
@@ -68,30 +104,30 @@ const cargarDatos = async () => {
     ]).start();
   };
 
-  // 3. NÚCLEO DE AUTENTICACIÓN (Unificado y Flexible)
+  // ==========================================
+  // 5. MANEJO DE APERTURA/CIERRE
+  // ==========================================
   const manejarAutenticacion = async () => {
-    const proximoEstado = !isLocked;
+    const proximoEstado = !isLocked; // Si estaba bloqueado(true), ahora será false
     
     try {
-      // Opciones flexibles: Pide huella si hay, pero siempre permite usar el PIN
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: hasBiometrics ? 'Verifica tu identidad' : 'Ingresa tu PIN o Patrón',
         fallbackLabel: 'Usar Patrón/PIN', 
-        disableDeviceFallback: false, // Esto es lo que lo hace flexible
+        disableDeviceFallback: false, 
       });
 
       if (result.success) {
+        // Actualizamos visualmente de inmediato para que la app se sienta rápida
         setIsLocked(proximoEstado);      
         
-        // 1. Atrapamos el ID por sus posibles nombres y lo imprimimos en la consola
         const idUsuario = currentUser.id || currentUser.worker_id;
-        console.log("Intentando guardar log con ID de Usuario:", idUsuario);
-
+        
         if (!idUsuario) {
           throw new Error("El usuario actual no tiene un ID válido");
         }
 
-        // 2. Enviamos el ID asegurado a la base de datos
+        // Enviamos el registro a PostgreSQL (Nota: isUnlocked es lo inverso a isLocked)
         await insertLog(1, idUsuario, !proximoEstado); 
         await cargarDatos(); 
       } else {
@@ -107,6 +143,9 @@ const cargarDatos = async () => {
     }
   };
 
+  // ==========================================
+  // RENDERIZADO VISUAL
+  // ==========================================
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         
@@ -123,7 +162,7 @@ const cargarDatos = async () => {
               
               <LockButton
                 isLocked={isLocked}
-                onPress={manejarAutenticacion} // Llamada simple
+                onPress={manejarAutenticacion} 
               />
 
             </View>
@@ -141,15 +180,14 @@ const cargarDatos = async () => {
             <Text style={styles.titlesToLeft}>Actividad Reciente:</Text>
         </View>
 
-        {/* Renderizado de tarjetas */}
+        {/* Renderizado de tarjetas del historial */}
         {recentLogs.length === 0 ? (
-          <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>Cargando actividad...</Text>
+          <Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>No hay actividad reciente registrada hoy...</Text>
         ) : (
           recentLogs.map((log) => {
             const iniciales = `${log.first_name?.charAt(0) || ''}${log.last_name?.charAt(0) || ''}`.toUpperCase();
             const nombreCompleto = `${log.first_name || 'Usuario'} ${log.last_name || 'Eliminado'}`;
             
-            // ¡AQUÍ FALTABA EL RETURN!
             return (
               <ActivityItem 
                 key={log.id}

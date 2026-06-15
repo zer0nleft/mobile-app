@@ -2,7 +2,7 @@
 
 // IMPORTANTE: Cambia "192.168.X.X" por la dirección IP IPv4 de tu computadora.
 // Si estás en Windows, abre la consola (cmd), escribe "ipconfig" y busca "Dirección IPv4".
-const API_URL = 'https://mobile-app-fxza.onrender.com'; 
+const API_URL = 'https://backend-mastertronics.onrender.com'; 
 
 export const insertLog = async (lockId, nfcCardId, isUnlocked) => {
   try {
@@ -149,5 +149,17 @@ export const loginWorker = async (worker_code, password) => {
   } catch (error) {
     console.error("Error en login:", error);
     return { success: false, error: 'Error de conexión' };
+  }
+};
+
+// CONSULTAR ESTADO DEL CANDADO EN TIEMPO REAL
+export const getLockStatus = async () => {
+  try {
+    const response = await fetch(`${API_URL}/hardware/lock-status`);
+    if (!response.ok) throw new Error("Error al consultar el estado del hardware");
+    return await response.json(); // Esto devuelve { unlocked: true/false }
+  } catch (error) {
+    console.error("Error obteniendo estado del candado:", error);
+    return { unlocked: false }; // Estado seguro por defecto si falla la red
   }
 };
