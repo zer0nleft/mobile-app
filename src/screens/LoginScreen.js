@@ -5,27 +5,25 @@ import { AuthContext } from '../context/AuthContext';
 import { loginWorker } from '../api';
 
 export default function LoginScreen() {
-  const [workerCode, setWorkerCode] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  // Traemos la función login de nuestro estado global
   const { login } = useContext(AuthContext);
 
   const handleLogin = async () => {
-    if (!workerCode || !password) {
-      Alert.alert("Error", "Por favor ingresa tu código y contraseña.");
+    if (!username || !password) {
+      Alert.alert("Error", "Por favor ingresa tu nombre de usuario y contraseña.");
       return;
     }
 
     setIsLoading(true);
-    const response = await loginWorker(workerCode, password);
+    const response = await loginWorker(username, password);
     setIsLoading(false);
 
     if (response.success) {
-      // ¡Éxito! Guardamos el usuario en el estado global.
-      // Esto automáticamente cambiará la pantalla en App.js
-      login(response.user); 
+      // AQUÍ ESTÁ EL CAMBIO CLAVE: Enviamos el usuario Y el token
+      login(response.user, response.token); 
     } else {
       Alert.alert("Acceso Denegado", response.error || "Credenciales incorrectas.");
     }
@@ -44,10 +42,11 @@ export default function LoginScreen() {
         <MaterialCommunityIcons name="account-outline" size={24} color="#666" style={styles.icon} />
         <TextInput
           style={styles.input}
-          placeholder="Código NFC"
-          value={workerCode}
-          onChangeText={setWorkerCode}
-          autoCapitalize="characters"
+          placeholder="Nombre de Usuario" 
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none" 
+          autoCorrect={false}   
         />
       </View>
 

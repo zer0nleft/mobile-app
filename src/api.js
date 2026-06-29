@@ -1,16 +1,22 @@
-// src/api.js
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// IMPORTANTE: Cambia "192.168.X.X" por la dirección IP IPv4 de tu computadora.
-// Si estás en Windows, abre la consola (cmd), escribe "ipconfig" y busca "Dirección IPv4".
 const API_URL = 'https://backend-mastertronics.onrender.com'; 
+
+// Función auxiliar para crear los headers dinámicamente
+const getHeaders = async () => {
+  const token = await AsyncStorage.getItem('userToken');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
 
 export const insertLog = async (lockId, nfcCardId, isUnlocked) => {
   try {
+    const headers = await getHeaders();
     const response = await fetch(`${API_URL}/logs`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
       body: JSON.stringify({
         lock_id: lockId,
         nfc_card_id: nfcCardId,
@@ -29,107 +35,148 @@ export const insertLog = async (lockId, nfcCardId, isUnlocked) => {
 
 export const getLogsPaginated = async (dateStr, page = 1, limit = 10) => {
   try {
-    // Armamos la URL con los parámetros: ej. /logs?date=2026-04-26&page=1&limit=10
     const url = `${API_URL}/logs?date=${dateStr}&page=${page}&limit=${limit}`;
-    const response = await fetch(url);
+    const headers = await getHeaders();
+    const response = await fetch(url, { headers });
     
     if (!response.ok) throw new Error("Error al consultar el servidor");
     
-    return await response.json(); // Esto ahora devuelve { data, currentPage, totalPages }
+    return await response.json(); 
   } catch (error) {
     console.error("Error obteniendo logs paginados:", error);
-    // Devolvemos una estructura vacía segura para no romper la app si no hay internet
     return { data: [], currentPage: 1, totalPages: 1 }; 
   }
 };
 
-
-
 //===========================================
 //CRUD DE USUARIOS:
 //===========================================
-
-// ---- CRUD USUARIOS ----
-
 export const getWorkers = async () => {
   try {
-    const response = await fetch(`${API_URL}/workers`);
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/workers`, { headers });
     
-    // Si el servidor no responde con un OK (ej. 404 o 500)
     if (!response.ok) {
-      alert(`Error del Servidor: ${response.status}`);
+      console.log(`Error del Servidor: ${response.status}`);
       return [];
     }
 
     return await response.json();
   } catch (error) { 
-    // Si el celular ni siquiera logra encontrar a la computadora (Error de red/IP)
-    alert(`Error de Conexión: No puedo llegar a ${API_URL}. Revisa la IP o el Wi-Fi.`);
+    alert(`Error de Conexión. Revisa la red o el servidor.`);
     console.error(error); 
     return []; 
   }
 };
 
-export const createWorker = async (workerData) => {
-  try {
-    await fetch(`${API_URL}/workers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(workerData),
-    });
-  } catch (error) { console.error(error); }
-};
-
-export const updateWorker = async (id, workerData) => {
-  try {
-    await fetch(`${API_URL}/workers/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(workerData),
-    });
-  } catch (error) { console.error(error); }
-};
-
-export const deleteWorker = async (id) => {
-  try {
-    await fetch(`${API_URL}/workers/${id}`, { method: 'DELETE' });
-  } catch (error) { console.error(error); }
-};
-
-// Le cambiamos el nombre para que sea claro que es paginada
 export const getLogsByUserPaginated = async (userId, dateStr, page = 1, limit = 10) => {
   try {
     const url = `${API_URL}/logs/user/${userId}?date=${dateStr}&page=${page}&limit=${limit}`;
-    const response = await fetch(url);
+    const headers = await getHeaders();
+    const response = await fetch(url, { headers });
     
     if (!response.ok) throw new Error("Error del servidor");
     
-    return await response.json(); // Ahora devuelve { data, currentPage, totalPages }
+    return await response.json(); 
   } catch (error) { 
     console.error("Error obteniendo logs del usuario:", error); 
     return { data: [], currentPage: 1, totalPages: 1 }; 
   }
 };
 
+export const createWorker = async (workerData) => {
+  try {
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/workers`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(workerData),
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      alert(`Error del Servidor: ${err.error || 'No se pudo crear el usuario. Revisa si el código o usuario ya existen.'}`);
+    }
+  } catch (error) { 
+    alert("Error de red al crear usuario");
+    console.error(error); 
+  }
+};
 
-//OBTENER ESTADISTICAS
+export const updateWorker = async (id, workerData) => {
+  try {
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/workers/${id}`, {
+      method: 'PUT',
+      headers: headers,
+      body: JSON.stringify(workerData),
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      alert(`Error del Servidor: ${err.error || 'No se pudo actualizar el usuario.'}`);
+    }
+  } catch (error) { 
+    alert("Error de red al actualizar usuario");
+    console.error(error); 
+  }
+};
+
+export const deleteWorker = async (id) => {
+  try {
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/workers/${id}`, { 
+      method: 'DELETE', 
+      headers: headers 
+    });
+    if (!response.ok) {
+      alert("Error del Servidor: No se pudo eliminar el usuario.");
+    }
+  } catch (error) { 
+    alert("Error de red al eliminar usuario");
+    console.error(error); 
+  }
+};
+
+// --- Asegúrate de pegar esto en alguna parte de tu api.js (¡Lo habíamos borrado!) ---
+export const getLastNfcCard = async () => {
+  try {
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/hardware/last-nfc`, { headers });
+    
+    if (!response.ok) {
+      throw new Error("Error consultando la tarjeta NFC");
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error obteniendo NFC:", error);
+    return null;
+  }
+};
+
+//===========================================
+// OBTENER ESTADISTICAS
+//===========================================
+
 export const getStatsSummary = async () => {
   try {
-    const response = await fetch(`${API_URL}/stats/summary`);
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/stats/summary`, { headers });
     return await response.json();
   } catch (error) { console.error(error); return null; }
 };
 
 export const getTopUsers = async () => {
   try {
-    const response = await fetch(`${API_URL}/stats/top-users`);
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/stats/top-users`, { headers });
     return await response.json();
   } catch (error) { console.error(error); return []; }
 };
 
 export const getLogsForReport = async (startDate, endDate) => {
   try {
-    const response = await fetch(`${API_URL}/logs/report?startDate=${startDate}&endDate=${endDate}`);
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/logs/report?startDate=${startDate}&endDate=${endDate}`, { headers });
     if (!response.ok) throw new Error("Error del servidor");
     return await response.json();
   } catch (error) {
@@ -138,28 +185,62 @@ export const getLogsForReport = async (startDate, endDate) => {
   }
 };
 
-export const loginWorker = async (worker_code, password) => {
-  try {
-    const response = await fetch(`${API_URL}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ worker_code, password }),
-    });
-    return await response.json();
-  } catch (error) {
-    console.error("Error en login:", error);
-    return { success: false, error: 'Error de conexión' };
-  }
-};
+//===========================================
+// RUTAS DE HARDWARE Y LOGIN
+//===========================================
 
-// CONSULTAR ESTADO DEL CANDADO EN TIEMPO REAL
 export const getLockStatus = async () => {
   try {
     const response = await fetch(`${API_URL}/hardware/lock-status`);
     if (!response.ok) throw new Error("Error al consultar el estado del hardware");
-    return await response.json(); // Esto devuelve { unlocked: true/false }
+    return await response.json(); 
   } catch (error) {
     console.error("Error obteniendo estado del candado:", error);
-    return { unlocked: false }; // Estado seguro por defecto si falla la red
+    return { unlocked: false }; 
+  }
+};
+
+export const loginWorker = async (username, password) => {
+  try {
+    const response = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || "Credenciales incorrectas"
+      };
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error en loginWorker:", error);
+    return {
+      success: false,
+      error: "Error de conexión con el servidor"
+    };
+  }
+};
+
+export const getLastFingerprint = async () => {
+  try {
+    const headers = await getHeaders();
+    const response = await fetch(`${API_URL}/hardware/last-fingerprint`, { headers });
+    
+    if (!response.ok) {
+      throw new Error("Error consultando la huella");
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error obteniendo huella:", error);
+    return null;
   }
 };

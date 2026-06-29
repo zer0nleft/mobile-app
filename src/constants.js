@@ -36,8 +36,6 @@ headerContainer: {
     justifyContent: 'center',  
     paddingBottom: 10,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 10,  
-    borderBottomRightRadius: 10,
     backgroundColor: '#fff',
   },
   headerSectionLeft: {
